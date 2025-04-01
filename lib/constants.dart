@@ -5,5 +5,5 @@ class Constants {
       "Get curated news from multiple sources, summarized automatically by AI.";
   static const String descriptionOne = "Stay Updated, Effortlessly";
 
-  static const Color primaryColor = Color(0xFF003A78); // Biru tua
+  static const Color primaryColor = Color(0xFF003A78);
 }

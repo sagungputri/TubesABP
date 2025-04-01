@@ -1,9 +1,17 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../../constants.dart';
+import 'package:tubes1/constants.dart';
+import 'login_page.dart';
 
-class RegisterPage extends StatelessWidget {
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  bool showPassword = false;
 
   @override
   Widget build(BuildContext context) {
@@ -20,52 +28,54 @@ class RegisterPage extends StatelessWidget {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-
               const Text(
                 "Create an account to get all features",
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
-
               const SizedBox(height: 32),
 
               const Text("Email"),
               const SizedBox(height: 6),
               TextField(
                 decoration: InputDecoration(
-                  hintText: "Email",
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Constants.primaryColor),
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
 
               const Text("Full Name"),
               const SizedBox(height: 6),
               TextField(
                 decoration: InputDecoration(
-                  hintText: "Full Name",
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Constants.primaryColor),
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
 
               const Text("Password"),
               const SizedBox(height: 6),
               TextField(
-                obscureText: true,
+                obscureText: !showPassword,
                 decoration: InputDecoration(
-                  hintText: "Password",
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Constants.primaryColor),
                   ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      showPassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        showPassword = !showPassword;
+                      });
+                    },
+                  ),
                 ),
               ),
-
               const SizedBox(height: 24),
 
               Center(
@@ -83,7 +93,12 @@ class RegisterPage extends StatelessWidget {
                         recognizer:
                             TapGestureRecognizer()
                               ..onTap = () {
-                                //navigasi signin
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const LoginPage(),
+                                  ),
+                                );
                               },
                       ),
                       const TextSpan(text: " now."),
@@ -91,13 +106,13 @@ class RegisterPage extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    //navigasi regis
+                    // ...................
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Constants.primaryColor,
@@ -108,11 +123,14 @@ class RegisterPage extends StatelessWidget {
                   ),
                   child: const Text(
                     "Create an account",
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
 
               Center(

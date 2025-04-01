@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants.dart';
+import 'package:tubes1/constants.dart';
 import 'package:tubes1/pages/register_page.dart';
 
 class PageWelcome extends StatelessWidget {
@@ -35,7 +35,6 @@ class PageWelcome extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-        
           const Text(
             'Quickly catch up with AI-generated\nsummaries from trusted news sources.',
             textAlign: TextAlign.center,

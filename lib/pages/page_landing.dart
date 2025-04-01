@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants.dart';
+import 'package:tubes1/constants.dart';
 
 class PageLanding extends StatelessWidget {
   const PageLanding({super.key});
