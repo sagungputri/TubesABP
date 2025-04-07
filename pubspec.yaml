@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.1.0
+  flutter_dotenv: ^5.1.0
     
 
 
