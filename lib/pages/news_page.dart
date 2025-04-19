@@ -255,10 +255,6 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  Widget _buildLoadingIndicator() {
-    return Expanded(child: Center(child: CircularProgressIndicator()));
-  }
-
   Widget _buildNewsList() {
     List<NewsArticle> filteredData = _newsArticles;
 
