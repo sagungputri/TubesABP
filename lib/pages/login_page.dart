@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tubes1/constants.dart';
 import 'register_page.dart';
+import 'news_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -82,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // aksiny
+                  //ini masih blm isi pengecekan
                   final email = emailController.text;
                   final pass = passwordController.text;
                   if (email.isEmpty || pass.isEmpty) {
@@ -92,12 +93,14 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     );
                   } else {
-                    // simulasinyaa
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Login berhasil')),
+                    // Navigasi ke NewsScreen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => NewsScreen()),
                     );
                   }
                 },
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Constants.primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
