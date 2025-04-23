@@ -110,7 +110,6 @@ class _NewsScreenState extends State<NewsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatusBarPlaceholder(),
             _buildSearchBar(),
             _buildFilterChips(),
             _buildTitle(),
@@ -124,30 +123,6 @@ class _NewsScreenState extends State<NewsScreen> {
         ),
       ),
       bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  Widget _buildStatusBarPlaceholder() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 15.0, left: 20, right: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '9:41',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-          ),
-          Row(
-            children: [
-              Icon(Icons.signal_cellular_alt, size: 18),
-              SizedBox(width: 4),
-              Icon(Icons.wifi, size: 18),
-              SizedBox(width: 4),
-              Icon(Icons.battery_full, size: 18),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
