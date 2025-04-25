@@ -50,6 +50,8 @@ class NewsScreen extends StatefulWidget {
 class _NewsScreenState extends State<NewsScreen> {
   int _selectedChipIndex = 2;
   int _bottomNavIndex = 0;
+  TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   final List<String> _chipLabels = [
     'Urutkan',
@@ -65,6 +67,20 @@ class _NewsScreenState extends State<NewsScreen> {
   void initState() {
     super.initState();
     fetchNews();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text;
+    });
   }
 
   Future<void> fetchNews() async {
@@ -98,14 +114,8 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar bisa dikosongkan klo gk perlu title di atas
-      // appBar: AppBar(
-      //   backgroundColor: Colors.grey[50],
-      //   elevation: 0,
-      // ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,6 +153,7 @@ class _NewsScreenState extends State<NewsScreen> {
           ],
         ),
         child: TextField(
+          controller: _searchController,
           decoration: InputDecoration(
             hintText: 'Search News',
             hintStyle: TextStyle(color: Colors.grey[600]),
@@ -150,9 +161,23 @@ class _NewsScreenState extends State<NewsScreen> {
               padding: const EdgeInsets.only(left: 15.0, right: 8.0),
               child: Icon(Icons.search, color: Colors.grey[800]),
             ),
+            suffixIcon:
+                _searchQuery.isNotEmpty
+                    ? IconButton(
+                      icon: Icon(Icons.clear, color: Colors.grey[600]),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    )
+                    : null,
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(vertical: 15.0),
           ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
         ),
       ),
     );
@@ -232,7 +257,6 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Widget _buildNewsList() {
     List<NewsArticle> filteredData = _newsArticles;
-
     if (_selectedChipIndex != 0 && _selectedChipIndex < _chipLabels.length) {
       String selectedCategory = _chipLabels[_selectedChipIndex];
       filteredData =
@@ -242,6 +266,42 @@ class _NewsScreenState extends State<NewsScreen> {
                     a.category.toLowerCase() == selectedCategory.toLowerCase(),
               )
               .toList();
+    }
+
+    // Then apply search filter if there's a search query
+    if (_searchQuery.isNotEmpty) {
+      filteredData =
+          filteredData
+              .where(
+                (article) =>
+                    article.headline.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ||
+                    article.category.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ),
+              )
+              .toList();
+    }
+
+    if (filteredData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 50, color: Colors.grey[400]),
+            SizedBox(height: 16),
+            Text(
+              'No results found',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
@@ -331,10 +391,6 @@ class _NewsScreenState extends State<NewsScreen> {
       onTap: (index) {
         setState(() {
           _bottomNavIndex = index;
-          // Tambahin navigasi ke halaman lain di sini klo butuh nanti
-          // if (index == 0) { // Home
-          // } else if (index == 1) { // Bookmark
-          // }
         });
       },
       items: const <BottomNavigationBarItem>[
