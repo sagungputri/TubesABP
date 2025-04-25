@@ -1,25 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
-class NewsArticle {
-  final String imageUrl;
-  final String category;
-  final String headline;
-
-  NewsArticle({
-    required this.imageUrl,
-    required this.category,
-    required this.headline,
-  });
-  factory NewsArticle.fromJson(Map<String, dynamic> json) {
-    return NewsArticle(
-      imageUrl: json['urlToImage'] ?? '',
-      category: json['source']['name'] ?? '',
-      headline: json['title'] ?? '',
-    );
-  }
-}
+import 'news_detail_page.dart';
+import '../models/news_model.dart';
 
 void main() {
   runApp(MyApp());
@@ -97,7 +80,6 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,6 +217,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
     if (_selectedChipIndex != 0 && _selectedChipIndex < _chipLabels.length) {
       String selectedCategory = _chipLabels[_selectedChipIndex];
+      print(filteredData);
       filteredData =
           _newsArticles
               .where(
@@ -252,74 +235,158 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
+  // Widget _buildNewsItem(NewsArticle article) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+  //     child: Container(
+  //       decoration: BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.circular(12.0),
+  //         boxShadow: [
+  //           BoxShadow(
+  //             color: Colors.grey.withOpacity(0.1),
+  //             spreadRadius: 1,
+  //             blurRadius: 4,
+  //             offset: Offset(0, 1),
+  //           ),
+  //         ],
+  //       ),
+  //       padding: const EdgeInsets.all(12.0),
+  //       child: Row(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           ClipRRect(
+  //             borderRadius: BorderRadius.circular(8.0),
+  //             child: Image.network(
+  //               article.imageUrl,
+  //               width: 100, // lebar gambar thumbnail
+  //               height: 100, // tnggi gambar thumbnail
+  //               fit: BoxFit.cover,
+  //               errorBuilder:
+  //                   (context, error, stackTrace) => Container(
+  //                     width: 100,
+  //                     height: 100,
+  //                     color: Colors.grey[300],
+  //                     child: Icon(
+  //                       Icons.image_not_supported,
+  //                       color: Colors.grey[600],
+  //                     ),
+  //                   ), //  placeholder jika  gagal
+  //             ),
+  //           ),
+  //           SizedBox(width: 12.0),
+  //           Expanded(
+  //             child: Column(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 Text(
+  //                   article.category,
+  //                   style: TextStyle(
+  //                     color: Colors.grey[600],
+  //                     fontSize: 13,
+  //                     fontWeight: FontWeight.w500,
+  //                   ),
+  //                 ),
+  //                 SizedBox(height: 5.0),
+  //                 Text(
+  //                   article.headline,
+  //                   style: TextStyle(
+  //                     fontSize: 15,
+  //                     fontWeight: FontWeight.w600,
+  //                     color: Colors.black87,
+  //                     height: 1.3,
+  //                   ),
+  //                   maxLines: 4, // max baris
+  //                   overflow: TextOverflow.ellipsis, // "..."kalau trllu panjang
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
+
   Widget _buildNewsItem(NewsArticle article) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: Offset(0, 1),
+      child: GestureDetector(
+        // Wrap with GestureDetector to make it clickable
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NewsDetailScreen(article: article),
             ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: Image.network(
-                article.imageUrl,
-                width: 100, // lebar gambar thumbnail
-                height: 100, // tnggi gambar thumbnail
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (context, error, stackTrace) => Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey[600],
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  article.imageUrl,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (context, error, stackTrace) => Container(
+                        width: 100,
+                        height: 100,
+                        color: Colors.grey[300],
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ), //  placeholder jika  gagal
+                ),
               ),
-            ),
-            SizedBox(width: 12.0),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    article.category,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+              SizedBox(width: 12.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      article.category,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 5.0),
-                  Text(
-                    article.headline,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                      height: 1.3,
+                    SizedBox(height: 5.0),
+                    Text(
+                      article.headline,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.3,
+                      ),
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 4, // max baris
-                    overflow: TextOverflow.ellipsis, // "..."kalau trllu panjang
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
