@@ -3,12 +3,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'news_detail_screen.dart'; 
+import 'package:google_generative_ai/google_generative_ai.dart';
+
+import 'news_detail_screen.dart';
 
 class NewsArticle {
   final String id;
   final String imageUrl;
-  final String category; 
+  final String category;
   final String headline;
   final String content;
   final String description;
@@ -18,7 +20,7 @@ class NewsArticle {
   final String sourceName;
   final String sourceIcon;
   final List<String> countries;
-  final List<String> allCategories; 
+  final List<String> allCategories;
 
   NewsArticle({
     required this.id,
@@ -36,18 +38,18 @@ class NewsArticle {
     required this.allCategories,
   });
 
-  factory NewsArticle.fromJson(Map<String, dynamic> json) {    
+  factory NewsArticle.fromJson(Map<String, dynamic> json) {
     List<String> categoriesList = json['category'] != null
         ? List<String>.from(json['category'])
         : [];
     String primaryCategory = categoriesList.isNotEmpty
         ? categoriesList.first.isNotEmpty ? categoriesList.first.toUpperCase() : 'NEWS'
-        : 'NEWS'; 
-    
+        : 'NEWS';
+
     List<String> countriesList = json['country'] != null
         ? List<String>.from(json['country'])
         : [];
-    
+
     String authorText = 'Unknown';
     if (json['creator'] != null) {
       if (json['creator'] is List) {
@@ -59,7 +61,7 @@ class NewsArticle {
       }
     }
 
-    return NewsArticle(      
+    return NewsArticle(
       id: json['article_id']?.toString() ?? '',
       imageUrl: json['image_url']?.toString() ?? '',
       category: primaryCategory,
@@ -69,7 +71,7 @@ class NewsArticle {
       author: authorText,
       publishedAt: json['pubDate']?.toString() ?? '',
       url: json['link']?.toString() ?? '',
-      sourceName: json['source_id']?.toString() ?? 'Unknown Source', 
+      sourceName: json['source_id']?.toString() ?? 'Unknown Source',
       sourceIcon: json['source_icon']?.toString() ?? '',
       countries: countriesList,
       allCategories: categoriesList,
@@ -77,9 +79,10 @@ class NewsArticle {
   }
 }
 
-Future<void> main() async {  
+// --- main() and MyApp remain the same ---
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: "/Users/azmi/Productive/Webdev/TubesABP/.env");
+  await dotenv.load(fileName: "/Users/azmi/Productive/Webdev/TubesABP/.env"); // Ensure this path is correct
   runApp(MyApp());
 }
 
@@ -106,9 +109,10 @@ class NewsScreen extends StatefulWidget {
   _NewsScreenState createState() => _NewsScreenState();
 }
 
-class _NewsScreenState extends State<NewsScreen> {
+class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateMixin {
   int _selectedChipIndex = 0;
   int _bottomNavIndex = 0;
+  bool _isDigestVisible = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final List<String> _chipLabels = [
@@ -128,13 +132,50 @@ class _NewsScreenState extends State<NewsScreen> {
   String _errorMessage = '';
   String? _nextPageToken;
   final ScrollController _scrollController = ScrollController();
+  
+  String _dailyDigest = '';
+  bool _isGeneratingDigest = false;
+  String _digestError = '';
+  GenerativeModel? _geminiModel;
 
   @override
   void initState() {
     super.initState();
+    _initializeGemini();
     fetchNews();
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_scrollListener);
+  }
+  
+  void _initializeGemini() {
+     final apiKey = dotenv.env['GEMINI_API_KEY'];
+     if (apiKey != null && apiKey.isNotEmpty) {
+        try {          
+          _geminiModel = GenerativeModel(            
+            model: 'gemini-2.0-flash',
+            // model: 'gemini-1.5-pro-latest',
+            // model: 'gemini-pro',
+
+            apiKey: apiKey
+          );          
+        } catch (e) {
+           print("Error initializing Gemini Model: $e");
+           if (mounted) {
+             setState(() {
+                _digestError = 'Error initializing AI Model. Digest unavailable.';
+             });
+           }
+           _geminiModel = null;
+        }
+     } else {
+        print("Warning: GEMINI_API_KEY not found in .env file. AI Digest feature disabled.");
+        if (mounted) {
+          setState(() {
+             _digestError = 'Gemini API Key not found. Digest unavailable.';
+          });
+        }
+        _geminiModel = null;
+     }
   }
 
   @override
@@ -167,12 +208,14 @@ class _NewsScreenState extends State<NewsScreen> {
   Future<void> fetchNews({bool isRefresh = true}) async {
     if (!mounted) return;
 
-    final String apiKey = dotenv.env['NEWSDATA_API_KEY'] ?? '';
-    if (apiKey.isEmpty) {
+    final String newsApiKey = dotenv.env['NEWSDATA_API_KEY'] ?? '';
+    if (newsApiKey.isEmpty) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'API key (NEWSDATA_API_KEY) not found. Please check your .env file.';
+          _errorMessage = 'Newsdata API key not found. Please check your .env file.';
+          _dailyDigest = ''; // Clear digest on API key error
+          _digestError = '';
         });
       }
       return;
@@ -180,13 +223,15 @@ class _NewsScreenState extends State<NewsScreen> {
 
     String apiCategory = _selectedChipIndex > 0
         ? _chipLabels[_selectedChipIndex].toLowerCase()
-        : '';
+        : ''; // Fetch general news if 'All' is selected
 
     final queryParams = {
-      'apikey': apiKey,
+      'apikey': newsApiKey,
       'language': 'en',
       'image': '1',
       'size': '10',
+      // Prioritize headlines for digest
+      // 'country': 'jp,us,gb', // Example: Focus on specific countries if needed
     };
 
     if (apiCategory.isNotEmpty) {
@@ -198,6 +243,7 @@ class _NewsScreenState extends State<NewsScreen> {
     }
 
     final Uri uri = Uri.https('newsdata.io', '/api/1/news', queryParams);
+    print("Fetching News URL: $uri");
 
     try {
       if (mounted) {
@@ -207,6 +253,10 @@ class _NewsScreenState extends State<NewsScreen> {
             _newsArticles.clear();
             _nextPageToken = null;
             _hasMoreData = true;
+            // buat reset digest state on refresh
+            _dailyDigest = '';
+            _digestError = '';
+            _isGeneratingDigest = false;
           } else {
             _isLoadingMore = true;
           }
@@ -220,7 +270,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('News articles fetched successfully: ${data['results']}');
+        // print('News articles fetched successfully: ${data['results']}');
         if (data['status'] == 'success') {
           final List results = data['results'] ?? [];
           final String? nextPage = data['nextPage'];
@@ -229,29 +279,117 @@ class _NewsScreenState extends State<NewsScreen> {
               .map((articleJson) => NewsArticle.fromJson(articleJson))
               .toList();
 
-          setState(() {
-            _newsArticles.addAll(newArticles);
-            _nextPageToken = nextPage;
-            _hasMoreData = nextPage != null && newArticles.isNotEmpty;
-            _isLoading = false;
-            _isLoadingMore = false;
-          });
+          if (mounted) {
+            setState(() {
+              if (isRefresh) {
+                _newsArticles = newArticles;
+              } else {
+                _newsArticles.addAll(newArticles);
+              }
+              _nextPageToken = nextPage;
+              _hasMoreData = nextPage != null && newArticles.isNotEmpty;
+              _isLoading = false;
+              _isLoadingMore = false;
+            });
+            
+            if (isRefresh && _newsArticles.isNotEmpty && _geminiModel != null) {
+              _generateDailyDigest(_newsArticles.map((a) => a.headline).toList());
+            } else if (isRefresh && _geminiModel == null) {              
+               setState(() {
+                  _digestError = 'Gemini API Key not found. Digest unavailable.';
+                  _isGeneratingDigest = false;
+                  _dailyDigest = '';
+               });
+            }
+          }
         } else {
-          throw Exception('API returned error: ${data['results']?['message'] ?? data['message'] ?? 'Unknown error'}');
+          throw Exception('News API returned error: ${data['results']?['message'] ?? data['message'] ?? 'Unknown error'}');
         }
       } else {
-        throw Exception('Failed to load news: HTTP ${response.statusCode}');
+        throw Exception('Failed to load news: HTTP ${response.statusCode} ${response.reasonPhrase}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("Error fetching news: $e");
+      print("Stack trace: $stackTrace");
       if (mounted) {
         setState(() {
           _isLoading = false;
           _isLoadingMore = false;
           _errorMessage = 'Failed to load news. Check connection or API key.';
+          _dailyDigest = '';
+          _digestError = '';
+          _isGeneratingDigest = false;
         });
       }
     }
   }
+  
+  Future<void> _generateDailyDigest(List<String> headlines) async {
+    if (_geminiModel == null || headlines.isEmpty || !mounted) {
+      if (_geminiModel == null && mounted) {
+         setState(() {
+            _digestError = 'Gemini API Key not found. Digest unavailable.';
+            _isGeneratingDigest = false;
+            _dailyDigest = '';
+         });
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isGeneratingDigest = true;
+      _digestError = '';
+      _dailyDigest = '';
+    });
+    
+    final headlinesToSend = headlines.take(15).toList();
+    final prompt = '''
+      You are a helpful news summarizer. I will provide you with a list of recent news headlines.
+      Your task is to generate a short, engaging 'daily digest' or 'newsletter intro' (2-4 sentences) summarizing the key events or trends based *only* on these headlines.
+      Do not invent information not present in the headlines. Make it sound like a concise digital newspaper summary.
+
+      Headlines:
+      - ${headlinesToSend.join("\n- ")}
+
+      Generate the summary:
+    ''';
+
+    print("--- Sending Prompt to Gemini ---");
+    // print(prompt);
+    print("Headlines Count: ${headlinesToSend.length}");
+    print("--- End Prompt ---");
+
+
+    try {
+       final response = await _geminiModel!.generateContent([Content.text(prompt)]);
+
+       if (!mounted) return;
+
+       if (response.text != null && response.text!.isNotEmpty) {
+          print("Gemini Response: ${response.text}");
+          setState(() {
+             _dailyDigest = response.text!;
+             _isGeneratingDigest = false;
+             _digestError = '';
+          });
+       } else {
+          throw Exception("Gemini returned an empty response.");
+       }
+
+    } catch (e, stackTrace) {
+        print("Error generating digest with Gemini: $e");
+        print("Stack trace: $stackTrace");
+        if (mounted) {
+          setState(() {
+            _digestError = 'Could not generate AI digest. ${e.toString()}';
+            _dailyDigest = '';
+            _isGeneratingDigest = false;
+          });
+        }
+    }
+  }
+
 
   Future<void> _loadMoreNews() async {
     if (_isLoadingMore || !_hasMoreData || _nextPageToken == null) return;
@@ -262,14 +400,17 @@ class _NewsScreenState extends State<NewsScreen> {
     if (_selectedChipIndex == index) return;
 
     setState(() {
-      _selectedChipIndex = index;
+      _selectedChipIndex = index;      
       _isLoading = true;
       _newsArticles = [];
       _nextPageToken = null;
       _hasMoreData = true;
       _errorMessage = '';
+      _dailyDigest = '';
+      _digestError = '';
+      _isGeneratingDigest = false;
       _scrollController.jumpTo(0);
-    });
+    });    
     fetchNews(isRefresh: true);
   }
 
@@ -286,8 +427,9 @@ class _NewsScreenState extends State<NewsScreen> {
           children: [
             _buildSearchBar(),
             _buildFilterChips(),
+            _buildDailyDigestWidget(),
             _buildTitle(),
-            if (_errorMessage.isNotEmpty && !_isLoading)
+            if (_errorMessage.isNotEmpty && !_isLoading && _newsArticles.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Center(
@@ -312,6 +454,178 @@ class _NewsScreenState extends State<NewsScreen> {
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }
+
+  Widget _buildDigestScrollableContent() {
+     Widget content;
+
+     if (_isGeneratingDigest) {
+       content = Row(
+         mainAxisAlignment: MainAxisAlignment.center,
+         children: [
+           SizedBox(
+               width: 16, height: 16,
+               child: CircularProgressIndicator(strokeWidth: 2.0, color: Colors.deepPurple)
+           ),
+           SizedBox(width: 10),
+           Text("Generating digest...", style: TextStyle(color: Colors.deepPurple[700], fontStyle: FontStyle.italic)),
+         ],
+       );
+     } else if (_digestError.isNotEmpty) {
+       content = Text(
+         _digestError,
+         style: TextStyle(color: Colors.red[700], fontSize: 14),
+         textAlign: TextAlign.center, 
+       );
+     } else if (_dailyDigest.isNotEmpty) {
+       content = Text(
+         _dailyDigest,
+         style: TextStyle(fontSize: 14.5, color: Colors.black87, height: 1.4),
+       );
+     } else if (!_isLoading && _newsArticles.isEmpty && _errorMessage.isEmpty) {
+        content = Text(
+           "Not enough headlines available to generate a digest for this category.",
+           style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+           textAlign: TextAlign.center,
+        );
+     } else if (_geminiModel == null) {
+        content = Text(
+          'Gemini API Key not configured. Digest unavailable.',
+          style: TextStyle(color: Colors.orange[800]),
+          textAlign: TextAlign.center,
+        );
+     }
+     else {
+       content = Text(
+         "Fetching today's highlights...",
+         style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+         textAlign: TextAlign.center,
+       );
+     }
+     
+     return Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(12.0),
+          child: content,
+        ),
+     );
+  }
+    
+  Widget _buildDailyDigestWidget() {    
+     if (_geminiModel == null && _digestError.contains('Key not found')) {
+        return Padding(
+           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+           child: Text(_digestError, style: TextStyle(color: Colors.orange[800], fontSize: 13)),
+        );
+     }     
+     if (_isLoading && _newsArticles.isEmpty) {
+        return SizedBox.shrink();
+     }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [           
+           Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+                Text(
+                  "✨ AI Daily Digest",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple[700],
+                  ),
+                ),                
+                IconButton(
+                  icon: Icon(
+                    _isDigestVisible ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.deepPurple[400],
+                  ),
+                  tooltip: _isDigestVisible ? 'Hide Digest' : 'Show Digest',
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                  splashRadius: 20,
+                  onPressed: () {
+                    if (mounted) {
+                      setState(() {
+                        _isDigestVisible = !_isDigestVisible;
+                      });
+                    }
+                  },
+                ),
+             ],
+           ),
+           SizedBox(height: 8),
+
+           AnimatedSize(
+             duration: const Duration(milliseconds: 300),
+             curve: Curves.easeInOut,
+             alignment: Alignment.topCenter,
+             child: _isDigestVisible 
+                 ? Container(
+                     width: double.infinity,                     
+                     constraints: BoxConstraints(
+                       maxHeight: 150.0,
+                     ),
+                     decoration: BoxDecoration(
+                       color: Colors.deepPurple[50],
+                       borderRadius: BorderRadius.circular(8.0),
+                       border: Border.all(color: Colors.deepPurple.withOpacity(0.2))
+                     ),                     
+                     child: _buildDigestScrollableContent(),
+                   )
+                 : SizedBox.shrink(),
+           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDigestContent() {
+     if (_isGeneratingDigest) {
+       return Row(
+         mainAxisAlignment: MainAxisAlignment.center,
+         children: [
+           SizedBox(
+               width: 16, height: 16,
+               child: CircularProgressIndicator(strokeWidth: 2.0, color: Colors.deepPurple)
+           ),
+           SizedBox(width: 10),
+           Text("Generating digest...", style: TextStyle(color: Colors.deepPurple[700], fontStyle: FontStyle.italic)),
+         ],
+       );
+     } else if (_digestError.isNotEmpty) {
+       return Text(
+         _digestError,
+         style: TextStyle(color: Colors.red[700], fontSize: 14),
+       );
+     } else if (_dailyDigest.isNotEmpty) {
+       return Text(
+         _dailyDigest,
+         style: TextStyle(fontSize: 14.5, color: Colors.black87, height: 1.4),
+       );
+     } else if (!_isLoading && _newsArticles.isEmpty && _errorMessage.isEmpty) {        
+        return Text(
+           "Not enough headlines available to generate a digest for this category.",
+           style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+           textAlign: TextAlign.center,
+        );
+     } else if (_geminiModel == null) {        
+        return Text(
+          'Gemini API Key not configured. Digest unavailable.',
+          style: TextStyle(color: Colors.orange[800]),
+        );
+     }
+     else {       
+       return Text(
+         "Fetching today's highlights...",
+         style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+       );
+     }
+  }
+  
 
   Widget _buildSearchBar() {
     return Padding(
@@ -350,11 +664,9 @@ class _NewsScreenState extends State<NewsScreen> {
             contentPadding: EdgeInsets.symmetric(vertical: 15.0),
           ),
           onChanged: (value) {
-            if (mounted) {
-              setState(() {
-                _searchQuery = value;
-              });
-            }
+            // This updates the query state variable, no need for setState here
+            // if the listener _onSearchChanged is correctly implemented
+            // _onSearchChanged(); // Call listener method
           },
         ),
       ),
@@ -406,11 +718,11 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Widget _buildTitle() {
     return Padding(
-      padding: const EdgeInsets.only(left: 16.0, top: 20.0, bottom: 10.0),
+      padding: const EdgeInsets.only(left: 16.0, top: 10.0, bottom: 10.0),
       child: Text(
         _selectedChipIndex == 0 ? 'Top Headlines' : '${_chipLabels[_selectedChipIndex]} News',
         style: TextStyle(
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: FontWeight.bold,
           color: Colors.black87,
         ),
@@ -424,34 +736,60 @@ class _NewsScreenState extends State<NewsScreen> {
       final query = _searchQuery.toLowerCase();
       filteredData = _newsArticles.where((article) =>
           article.headline.toLowerCase().contains(query) ||
-          article.description.toLowerCase().contains(query) ||
+          (article.description.isNotEmpty && article.description.toLowerCase().contains(query)) ||
           article.sourceName.toLowerCase().contains(query) ||
-          article.content.toLowerCase().contains(query)).toList();
+          (article.content.isNotEmpty && article.content.toLowerCase().contains(query))).toList();
+    }
+    
+    if (!_isLoading && _newsArticles.isEmpty && _errorMessage.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             children: [
+                Icon(
+                  Icons.article_outlined,
+                  size: 60,
+                  color: Colors.grey[400],
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'No articles found for "${_chipLabels[_selectedChipIndex]}" category.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+             ],
+          ),
+        ),
+      );
     }
 
-    if (!_isLoading && filteredData.isEmpty && _errorMessage.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _searchQuery.isNotEmpty ? Icons.search_off : Icons.article_outlined,
-              size: 60,
-              color: Colors.grey[400],
-            ),
-            SizedBox(height: 16),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'No results found for "$_searchQuery"'
-                  : 'No articles found for this category.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+    // Handle search results empty
+    if (!_isLoading && filteredData.isEmpty && _searchQuery.isNotEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 60,
+                color: Colors.grey[400],
               ),
-              textAlign: TextAlign.center,
-            ),
-            if (_searchQuery.isNotEmpty)
+              SizedBox(height: 16),
+              Text(
+                'No results found for "$_searchQuery"',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
@@ -459,22 +797,22 @@ class _NewsScreenState extends State<NewsScreen> {
                   style: TextStyle(color: Colors.grey[500]),
                 ),
               ),
-          ],
-        ),
-      );
+            ],
+          ),
+        );
     }
 
     return ListView.builder(
-      controller: _scrollController,
-      itemCount: filteredData.length + (_isLoadingMore || !_hasMoreData ? 1 : 0),
-      itemBuilder: (context, index) {
+      controller: _scrollController,      
+      itemCount: filteredData.length + 1,
+      itemBuilder: (context, index) {        
         if (index == filteredData.length) {
           if (_isLoadingMore) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 20.0),
               child: Center(child: CircularProgressIndicator()),
             );
-          } else if (!_hasMoreData && _newsArticles.isNotEmpty) {
+          } else if (!_hasMoreData && _newsArticles.isNotEmpty) {            
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 20.0),
               child: Center(
@@ -484,24 +822,28 @@ class _NewsScreenState extends State<NewsScreen> {
                 ),
               ),
             );
-          } else {
+          } else {            
             return SizedBox.shrink();
           }
         }
-
+        
         if (index < filteredData.length) {
-          return _buildNewsItem(context, filteredData[index]);
+           final article = filteredData[index];           
+           if (article.id.isEmpty || article.headline.isEmpty) {
+               return SizedBox.shrink();
+           }
+           return _buildNewsItem(context, article);
         }
-
+        
         return SizedBox.shrink();
       },
     );
   }
 
-  Widget _buildNewsItem(BuildContext context, NewsArticle article) {
-    if (article.id.isEmpty || article.headline.isEmpty) {
-      return SizedBox.shrink();
-    }
+  Widget _buildNewsItem(BuildContext context, NewsArticle article) {    
+    // if (article.id.isEmpty || article.headline.isEmpty) {
+    //   return SizedBox.shrink();
+    // }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: InkWell(
@@ -564,7 +906,7 @@ class _NewsScreenState extends State<NewsScreen> {
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Icon(
-                          Icons.article,
+                          Icons.article_outlined,
                           color: Colors.grey[500],
                           size: 32,
                         ),
@@ -573,8 +915,7 @@ class _NewsScreenState extends State<NewsScreen> {
               SizedBox(width: 12.0),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,                  
                   children: [
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -602,7 +943,7 @@ class _NewsScreenState extends State<NewsScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        SizedBox(width: 4),
+                        SizedBox(width: 4),                        
                         if (article.category != 'NEWS')
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -635,7 +976,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 6.0),
+                    SizedBox(height: 6.0),                    
                     if (article.description.isNotEmpty)
                       Text(
                         article.description,
@@ -664,10 +1005,15 @@ class _NewsScreenState extends State<NewsScreen> {
         if (mounted) {
           setState(() {
             _bottomNavIndex = index;
-            if (index == 1) {
+            if (index == 1) {              
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Bookmark Screen Tapped (Not Implemented)')),
+                SnackBar(content: Text('Bookmark Screen Tapped (Not Implemented Yet)')),
               );
+            } else if (index == 0) {
+              // //  Optional: Scroll to top pas balik ke Home tab
+              //  if (_scrollController.hasClients) {
+              //    _scrollController.animateTo(0, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
+              //  }
             }
           });
         }
