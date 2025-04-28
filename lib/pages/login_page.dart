@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tubes1/constants.dart';
+import '../models/news_model.dart';
 import 'register_page.dart';
 import 'news_page.dart';
 
@@ -16,6 +17,9 @@ class _LoginPageState extends State<LoginPage> {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  // Create a single BookmarkManager instance
+  final BookmarkManager _bookmarkManager = BookmarkManager();
 
   void goToRegister() {
     Navigator.push(
@@ -83,7 +87,6 @@ class _LoginPageState extends State<LoginPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  //ini masih blm isi pengecekan
                   final email = emailController.text;
                   final pass = passwordController.text;
                   if (email.isEmpty || pass.isEmpty) {
@@ -93,10 +96,14 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     );
                   } else {
-                    // Navigasi ke NewsScreen
+                    // Navigasi ke NewsScreen dengan BookmarkManager
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => NewsScreen()),
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                NewsScreen(bookmarkManager: _bookmarkManager),
+                      ),
                     );
                   }
                 },

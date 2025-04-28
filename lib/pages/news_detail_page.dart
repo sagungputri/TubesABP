@@ -3,27 +3,81 @@ import '../models/news_model.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
+  final BookmarkManager bookmarkManager;
 
-  const NewsDetailScreen({Key? key, required this.article}) : super(key: key);
+  const NewsDetailScreen({
+    Key? key,
+    required this.article,
+    required this.bookmarkManager,
+  }) : super(key: key);
 
   @override
   _NewsDetailScreenState createState() => _NewsDetailScreenState();
 }
 
 class _NewsDetailScreenState extends State<NewsDetailScreen> {
-  bool isBookmarked = false;
+  late bool isBookmarked;
+  int _bottomNavIndex = 0; // Add this line to define _bottomNavIndex
 
-  int _bottomNavIndex = 0; // Indeks untuk BottomNavigationBar
+  @override
+  void initState() {
+    super.initState();
+    isBookmarked = widget.article.isBookmarked;
+  }
+
+  void _showBookmarkDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Bookmark Article'),
+          content: Text('Do you want to save this article for later?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Save'),
+              onPressed: () {
+                // Toggle bookmark
+                widget.bookmarkManager.toggleBookmark(widget.article);
+                setState(() {
+                  isBookmarked = !isBookmarked;
+                });
+
+                // Show snackbar
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isBookmarked
+                          ? 'Article saved to bookmarks'
+                          : 'Bookmark removed',
+                    ),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _bottomNavIndex = index;
-      // Navigasi berdasarkan tab yang dipilih
+      // Navigation logic
       if (_bottomNavIndex == 0) {
-        // Aksi untuk Home
+        // Home
         Navigator.pushReplacementNamed(context, '/home');
       } else if (_bottomNavIndex == 1) {
-        // Aksi untuk Bookmark
+        // Bookmarks
         Navigator.pushReplacementNamed(context, '/bookmarks');
       }
     });
@@ -38,29 +92,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         foregroundColor: Colors.black87,
         elevation: 0.5,
         actions: [
-          // IconButton(
-          //   icon: Icon(Icons.share),
-          //   onPressed: () {
-          //     Share.share('Check out this news: ${article.headline}');
-          //   },
-          // ),
           IconButton(
             icon: Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border),
-            onPressed: () {
-              setState(() {
-                isBookmarked = !isBookmarked;
-              });
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isBookmarked
-                        ? 'News saved to bookmarks'
-                        : 'Bookmark removed',
-                  ),
-                ),
-              );
-            },
+            onPressed: _showBookmarkDialog,
           ),
         ],
       ),
@@ -191,31 +225,22 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomNavigationBar(
-      currentIndex: _bottomNavIndex,
-      onTap: (index) {
-        setState(() {
-          _bottomNavIndex = index;
-          // Tambahin navigasi ke halaman lain di sini klo butuh nanti
-          // if (index == 0) { // Home
-          // } else if (index == 1) { // Bookmark
-          // }
-        });
-      },
-      items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.bookmark_border),
-          activeIcon: Icon(Icons.bookmark),
-          label: 'Bookmark',
-        ),
-      ],
-      selectedItemColor: Colors.blue[800],
-      unselectedItemColor: Colors.grey[600],
-      backgroundColor: Colors.white,
-      type: BottomNavigationBarType.fixed,
-      elevation: 5.0,
-    )
-      
+        currentIndex: _bottomNavIndex,
+        onTap: _onItemTapped,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bookmark_border),
+            activeIcon: Icon(Icons.bookmark),
+            label: 'Bookmark',
+          ),
+        ],
+        selectedItemColor: Colors.blue[800],
+        unselectedItemColor: Colors.grey[600],
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
+        elevation: 5.0,
+      ),
     );
   }
 

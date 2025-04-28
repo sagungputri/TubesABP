@@ -9,6 +9,8 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  final BookmarkManager _bookmarkManager = BookmarkManager();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -19,13 +21,17 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.grey[50],
         fontFamily: 'Sans-serif',
       ),
-      home: NewsScreen(),
+      home: NewsScreen(bookmarkManager: _bookmarkManager),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class NewsScreen extends StatefulWidget {
+  final BookmarkManager bookmarkManager;
+
+  const NewsScreen({Key? key, required this.bookmarkManager}) : super(key: key);
+
   @override
   _NewsScreenState createState() => _NewsScreenState();
 }
@@ -83,28 +89,68 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar bisa dikosongkan klo gk perlu title di atas
-      // appBar: AppBar(
-      //   backgroundColor: Colors.grey[50],
-      //   elevation: 0,
-      // ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchBar(),
-            _buildFilterChips(),
-            _buildTitle(),
-            Expanded(
-              child:
-                  _isLoading
-                      ? Center(child: CircularProgressIndicator())
-                      : _buildNewsList(),
-            ),
-          ],
-        ),
-      ),
+      body:
+          _bottomNavIndex == 0 ? _buildNewsContent() : _buildBookmarksContent(),
       bottomNavigationBar: _buildBottomNavBar(),
+    );
+  }
+
+  Widget _buildNewsContent() {
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSearchBar(),
+          _buildFilterChips(),
+          _buildTitle(),
+          Expanded(
+            child:
+                _isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : _buildNewsList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookmarksContent() {
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, top: 20.0, bottom: 10.0),
+            child: Text(
+              'Bookmarks',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child:
+                widget.bookmarkManager.bookmarkedArticles.isEmpty
+                    ? Center(
+                      child: Text(
+                        'No bookmarked articles',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                    : ListView.builder(
+                      itemCount:
+                          widget.bookmarkManager.bookmarkedArticles.length,
+                      itemBuilder: (context, index) {
+                        return _buildNewsItem(
+                          widget.bookmarkManager.bookmarkedArticles[index],
+                        );
+                      },
+                    ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -217,7 +263,6 @@ class _NewsScreenState extends State<NewsScreen> {
 
     if (_selectedChipIndex != 0 && _selectedChipIndex < _chipLabels.length) {
       String selectedCategory = _chipLabels[_selectedChipIndex];
-      print(filteredData);
       filteredData =
           _newsArticles
               .where(
@@ -235,89 +280,19 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  // Widget _buildNewsItem(NewsArticle article) {
-  //   return Padding(
-  //     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-  //     child: Container(
-  //       decoration: BoxDecoration(
-  //         color: Colors.white,
-  //         borderRadius: BorderRadius.circular(12.0),
-  //         boxShadow: [
-  //           BoxShadow(
-  //             color: Colors.grey.withOpacity(0.1),
-  //             spreadRadius: 1,
-  //             blurRadius: 4,
-  //             offset: Offset(0, 1),
-  //           ),
-  //         ],
-  //       ),
-  //       padding: const EdgeInsets.all(12.0),
-  //       child: Row(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           ClipRRect(
-  //             borderRadius: BorderRadius.circular(8.0),
-  //             child: Image.network(
-  //               article.imageUrl,
-  //               width: 100, // lebar gambar thumbnail
-  //               height: 100, // tnggi gambar thumbnail
-  //               fit: BoxFit.cover,
-  //               errorBuilder:
-  //                   (context, error, stackTrace) => Container(
-  //                     width: 100,
-  //                     height: 100,
-  //                     color: Colors.grey[300],
-  //                     child: Icon(
-  //                       Icons.image_not_supported,
-  //                       color: Colors.grey[600],
-  //                     ),
-  //                   ), //  placeholder jika  gagal
-  //             ),
-  //           ),
-  //           SizedBox(width: 12.0),
-  //           Expanded(
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Text(
-  //                   article.category,
-  //                   style: TextStyle(
-  //                     color: Colors.grey[600],
-  //                     fontSize: 13,
-  //                     fontWeight: FontWeight.w500,
-  //                   ),
-  //                 ),
-  //                 SizedBox(height: 5.0),
-  //                 Text(
-  //                   article.headline,
-  //                   style: TextStyle(
-  //                     fontSize: 15,
-  //                     fontWeight: FontWeight.w600,
-  //                     color: Colors.black87,
-  //                     height: 1.3,
-  //                   ),
-  //                   maxLines: 4, // max baris
-  //                   overflow: TextOverflow.ellipsis, // "..."kalau trllu panjang
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildNewsItem(NewsArticle article) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: GestureDetector(
-        // Wrap with GestureDetector to make it clickable
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => NewsDetailScreen(article: article),
+              builder:
+                  (context) => NewsDetailScreen(
+                    article: article,
+                    bookmarkManager: widget.bookmarkManager,
+                  ),
             ),
           );
         },
@@ -385,6 +360,18 @@ class _NewsScreenState extends State<NewsScreen> {
                   ],
                 ),
               ),
+              // Bookmark Icon
+              IconButton(
+                icon: Icon(
+                  article.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: article.isBookmarked ? Colors.blue : Colors.grey,
+                ),
+                onPressed: () {
+                  // Toggle bookmark
+                  widget.bookmarkManager.toggleBookmark(article);
+                  setState(() {});
+                },
+              ),
             ],
           ),
         ),
@@ -398,10 +385,6 @@ class _NewsScreenState extends State<NewsScreen> {
       onTap: (index) {
         setState(() {
           _bottomNavIndex = index;
-          // Tambahin navigasi ke halaman lain di sini klo butuh nanti
-          // if (index == 0) { // Home
-          // } else if (index == 1) { // Bookmark
-          // }
         });
       },
       items: const <BottomNavigationBarItem>[
