@@ -45,38 +45,36 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     }
   }
 
-  Future<void> _toggleBookmark() async {
-    try {
-      if (_isBookmarked) {
-        await BookmarkService.removeBookmark(widget.article);
-      } else {
-        await BookmarkService.addBookmark(widget.article);
-      }
-
-      if (mounted) {
-        setState(() {
-          _isBookmarked = !_isBookmarked;
-        });
-
-        // Show a snackbar to provide feedback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isBookmarked ? 'Article bookmarked' : 'Bookmark removed',
-            ),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error toggling bookmark: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update bookmark'),
-          duration: Duration(seconds: 1),
-        ),
-      );
+  // Tambahkan metode untuk memeriksa status bookmark
+  Future<void> _checkBookmarkStatus() async {
+    bool bookmarked = await BookmarkService.isBookmarked(widget.article);
+    if (mounted) {
+      setState(() {
+        _isBookmarked = bookmarked;
+      });
     }
+  }
+
+  // Metode untuk toggle bookmark
+  Future<void> _toggleBookmark() async {
+    if (_isBookmarked) {
+      await BookmarkService.removeBookmark(widget.article);
+    } else {
+      await BookmarkService.addBookmark(widget.article);
+    }
+
+    // Perbarui status bookmark
+    await _checkBookmarkStatus();
+
+    // Tampilkan notifikasi
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isBookmarked ? 'Artikel berhasil dibookmark' : 'Bookmark dihapus',
+        ),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 
   Future<void> _fetchRelatedArticles() async {
@@ -295,12 +293,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         IconButton(
           icon: Icon(
             _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-            color:
-                _isBookmarked
-                    ? Colors.blue[700]
-                    : Colors.black87, // Highlight if bookmarked
+            color: _isBookmarked ? Colors.blue[700] : Colors.black87,
           ),
-          tooltip: _isBookmarked ? 'Remove Bookmark' : 'Bookmark Article',
+          tooltip: _isBookmarked ? 'Hapus Bookmark' : 'Bookmark Artikel',
           onPressed: _toggleBookmark,
         ),
         IconButton(

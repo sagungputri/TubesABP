@@ -7,6 +7,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 
 import 'news_detail_screen.dart';
 import 'bookmark_service.dart';
+import 'bookmark_screen.dart';
 
 class NewsArticle {
   final String id;
@@ -1058,19 +1059,11 @@ class _NewsScreenState extends State<NewsScreen>
           setState(() {
             _bottomNavIndex = index;
             if (index == 1) {
+              // Dipanggil saat icon bookmark di bottom nav diklik
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => BookmarkScreen()),
               );
-            } else if (index == 0) {
-              // Optional: Scroll to top when back to Home tab
-              if (_scrollController.hasClients) {
-                _scrollController.animateTo(
-                  0,
-                  duration: Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              }
             }
           });
         }

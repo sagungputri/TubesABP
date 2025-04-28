@@ -9,82 +9,80 @@ class BookmarkService {
   static Future<void> addBookmark(NewsArticle article) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Get existing bookmarks
+    // Ambil daftar bookmark yang sudah ada
     List<String> bookmarks = prefs.getStringList(_bookmarksKey) ?? [];
 
-    // Convert article to JSON string
-    String articleJson = json.encode(article.toJson());
+    // Konversi artikel ke JSON string
+    String articleJson = json.encode({
+      'id': article.id,
+      'imageUrl': article.imageUrl,
+      'category': article.category,
+      'headline': article.headline,
+      'content': article.content,
+      'description': article.description,
+      'author': article.author,
+      'publishedAt': article.publishedAt,
+      'url': article.url,
+      'sourceName': article.sourceName,
+      'sourceIcon': article.sourceIcon,
+      'countries': article.countries,
+      'allCategories': article.allCategories,
+    });
 
-    // Check if article is not already bookmarked
-    if (!bookmarks.contains(articleJson)) {
+    // Cek apakah artikel sudah ada di bookmark
+    bool isAlreadyBookmarked = bookmarks.any((bookmark) {
+      Map<String, dynamic> existingArticle = json.decode(bookmark);
+      return existingArticle['id'] == article.id;
+    });
+
+    if (!isAlreadyBookmarked) {
       bookmarks.add(articleJson);
       await prefs.setStringList(_bookmarksKey, bookmarks);
+      print('Artikel berhasil dibookmark: ${article.headline}');
     }
   }
 
-  // Remove a bookmarked article
+  // Hapus bookmark
   static Future<void> removeBookmark(NewsArticle article) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Get existing bookmarks
     List<String> bookmarks = prefs.getStringList(_bookmarksKey) ?? [];
 
-    // Convert article to JSON string
-    String articleJson = json.encode(article.toJson());
-
-    // Remove the article
-    bookmarks.removeWhere((item) => item == articleJson);
+    // Hapus artikel berdasarkan ID
+    bookmarks.removeWhere((bookmark) {
+      Map<String, dynamic> existingArticle = json.decode(bookmark);
+      return existingArticle['id'] == article.id;
+    });
 
     await prefs.setStringList(_bookmarksKey, bookmarks);
+    print('Artikel dihapus dari bookmark: ${article.headline}');
   }
 
-  // Check if an article is bookmarked
+  // Periksa apakah artikel sudah di-bookmark
   static Future<bool> isBookmarked(NewsArticle article) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Get existing bookmarks
     List<String> bookmarks = prefs.getStringList(_bookmarksKey) ?? [];
 
-    // Convert article to JSON string
-    String articleJson = json.encode(article.toJson());
-
-    return bookmarks.contains(articleJson);
+    return bookmarks.any((bookmark) {
+      Map<String, dynamic> existingArticle = json.decode(bookmark);
+      return existingArticle['id'] == article.id;
+    });
   }
 
-  // Get all bookmarked articles
+  // Dapatkan semua bookmark
   static Future<List<NewsArticle>> getBookmarks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Get existing bookmarks
     List<String> bookmarkStrings = prefs.getStringList(_bookmarksKey) ?? [];
 
-    // Convert JSON strings back to NewsArticle objects
     List<NewsArticle> bookmarks =
-        bookmarkStrings.map((jsonStr) {
-          return NewsArticle.fromJson(json.decode(jsonStr));
+        bookmarkStrings.map((bookmarkJson) {
+          Map<String, dynamic> articleMap = json.decode(bookmarkJson);
+          return NewsArticle.fromJson(articleMap);
         }).toList();
 
+    print('Jumlah artikel yang di-bookmark: ${bookmarks.length}');
     return bookmarks;
-  }
-}
-
-// Extend NewsArticle with toJson method for serialization
-extension NewsArticleExtension on NewsArticle {
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'imageUrl': imageUrl,
-      'category': category,
-      'headline': headline,
-      'content': content,
-      'description': description,
-      'author': author,
-      'publishedAt': publishedAt,
-      'url': url,
-      'sourceName': sourceName,
-      'sourceIcon': sourceIcon,
-      'countries': countries,
-      'categories': allCategories,
-    };
   }
 }
