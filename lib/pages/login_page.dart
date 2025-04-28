@@ -1,36 +1,31 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tubes1/constants.dart';
-import 'login_page.dart';
+import 'register_page.dart';
 import 'package:http/http.dart' as http;
 import '../services/AuthServices.dart';
 import '../services/globals.dart';
 import 'dart:convert';
 import 'news_page.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _LoginPageState extends State<LoginPage> {
   bool showPassword = false;
   String _email = '';
   String _password = '';
-  String _name = '';
-  //
-  createAccountPressed() async {
+
+  loginPressed() async {
     bool emailValid = RegExp(
       r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
     ).hasMatch(_email);
     if (emailValid) {
-      http.Response response = await AuthServices.register(
-        _name,
-        _email,
-        _password,
-      );
+      http.Response response = await AuthServices.login(_email, _password);
       Map responseMap = jsonDecode(response.body);
       if (response.statusCode == 200) {
         Navigator.push(
@@ -56,12 +51,12 @@ class _RegisterPageState extends State<RegisterPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Let’s Get Started!",
+                "Welcome Back!",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               const Text(
-                "Create an account to get all features",
+                "Sign in to access your account",
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 32),
@@ -76,21 +71,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 onChanged: (value) {
                   _email = value;
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              const Text("Full Name"),
-              const SizedBox(height: 6),
-              TextField(
-                decoration: InputDecoration(
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Constants.primaryColor),
-                  ),
-                ),
-                onChanged: (value) {
-                  _name = value;
                 },
               ),
               const SizedBox(height: 24),
@@ -123,11 +103,11 @@ class _RegisterPageState extends State<RegisterPage> {
               Center(
                 child: RichText(
                   text: TextSpan(
-                    text: "Already have an account? ",
+                    text: "Don't have an account? ",
                     style: const TextStyle(color: Colors.black),
                     children: [
                       TextSpan(
-                        text: "Log in",
+                        text: "Register",
                         style: const TextStyle(
                           color: Constants.primaryColor,
                           fontWeight: FontWeight.w600,
@@ -138,7 +118,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => const LoginPage(),
+                                    builder: (_) => const RegisterPage(),
                                   ),
                                 );
                               },
@@ -153,7 +133,7 @@ class _RegisterPageState extends State<RegisterPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => createAccountPressed(),
+                  onPressed: () => loginPressed(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Constants.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -162,42 +142,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                   ),
                   child: const Text(
-                    "Create an account",
+                    "Sign In",
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                       color: Colors.white,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Center(
-                child: Text.rich(
-                  TextSpan(
-                    text: "By creating an account, you agree to our\n",
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    children: [
-                      TextSpan(
-                        text: "Terms of Service",
-                        style: const TextStyle(
-                          color: Constants.primaryColor,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      const TextSpan(text: " and "),
-                      TextSpan(
-                        text: "Privacy Policy",
-                        style: const TextStyle(
-                          color: Constants.primaryColor,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      const TextSpan(text: "."),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ],

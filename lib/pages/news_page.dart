@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 import 'news_detail_screen.dart';
+import 'bookmark_service.dart';
 
 class NewsArticle {
   final String id;
@@ -83,9 +84,7 @@ class NewsArticle {
 // --- main() and MyApp remain the same ---
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(
-    fileName: "/Users/azmi/Productive/Webdev/TubesABP/.env",
-  ); // Ensure this path is correct
+  await dotenv.load(fileName: ".env"); // Ensure this path is correct
   runApp(MyApp());
 }
 
@@ -1059,16 +1058,19 @@ class _NewsScreenState extends State<NewsScreen>
           setState(() {
             _bottomNavIndex = index;
             if (index == 1) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Bookmark Screen Tapped (Not Implemented Yet)'),
-                ),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => BookmarkScreen()),
               );
             } else if (index == 0) {
-              // //  Optional: Scroll to top pas balik ke Home tab
-              //  if (_scrollController.hasClients) {
-              //    _scrollController.animateTo(0, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
-              //  }
+              // Optional: Scroll to top when back to Home tab
+              if (_scrollController.hasClients) {
+                _scrollController.animateTo(
+                  0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
             }
           });
         }
@@ -1091,6 +1093,265 @@ class _NewsScreenState extends State<NewsScreen>
       type: BottomNavigationBarType.fixed,
       elevation: 8.0,
       showUnselectedLabels: true,
+    );
+  }
+}
+
+class BookmarkScreen extends StatefulWidget {
+  @override
+  _BookmarkScreenState createState() => _BookmarkScreenState();
+}
+
+class _BookmarkScreenState extends State<BookmarkScreen> {
+  List<NewsArticle> _bookmarkedArticles = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    try {
+      final bookmarks = await BookmarkService.getBookmarks();
+      if (mounted) {
+        setState(() {
+          _bookmarkedArticles = bookmarks;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading bookmarks: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _removeBookmark(NewsArticle article) async {
+    await BookmarkService.removeBookmark(article);
+    _loadBookmarks();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Bookmarked Articles'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: TextStyle(
+          color: Colors.black87,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : _bookmarkedArticles.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.bookmark_border,
+                      size: 60,
+                      color: Colors.grey[400],
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No bookmarked articles',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Save articles to read later',
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              )
+              : ListView.builder(
+                itemCount: _bookmarkedArticles.length,
+                itemBuilder: (context, index) {
+                  final article = _bookmarkedArticles[index];
+                  return Dismissible(
+                    key: Key(article.id),
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: EdgeInsets.only(right: 20),
+                      child: Icon(Icons.delete, color: Colors.white),
+                    ),
+                    direction: DismissDirection.endToStart,
+                    onDismissed: (direction) {
+                      _removeBookmark(article);
+                    },
+                    child: _buildBookmarkItem(context, article),
+                  );
+                },
+              ),
+    );
+  }
+
+  Widget _buildBookmarkItem(BuildContext context, NewsArticle article) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NewsDetailScreen(article: article),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child:
+                    article.imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                          imageUrl: article.imageUrl,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => Container(
+                                width: 100,
+                                height: 100,
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.0,
+                                  ),
+                                ),
+                              ),
+                          errorWidget:
+                              (context, url, error) => Container(
+                                width: 100,
+                                height: 100,
+                                color: Colors.grey[200],
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey[500],
+                                  size: 30,
+                                ),
+                              ),
+                        )
+                        : Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Icon(
+                            Icons.article_outlined,
+                            color: Colors.grey[500],
+                            size: 32,
+                          ),
+                        ),
+              ),
+              SizedBox(width: 12.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (article.sourceIcon.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 5.0),
+                            child: CachedNetworkImage(
+                              imageUrl: article.sourceIcon,
+                              width: 14,
+                              height: 14,
+                              fit: BoxFit.contain,
+                              errorWidget:
+                                  (context, url, error) => SizedBox.shrink(),
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            article.sourceName,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        if (article.category != 'NEWS')
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              article.category,
+                              style: TextStyle(
+                                color: Colors.blue[800],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: 6.0),
+                    Text(
+                      article.headline,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.3,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
