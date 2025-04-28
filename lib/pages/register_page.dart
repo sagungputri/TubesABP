@@ -2,6 +2,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tubes1/constants.dart';
 import 'login_page.dart';
+import 'package:http/http.dart' as http;
+import '../services/AuthServices.dart';
+import '../services/globals.dart';
+import 'dart:convert';
+import 'news_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -12,6 +17,32 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   bool showPassword = false;
+  String _email = '';
+  String _password = '';
+  String _name = '';
+  //
+  createAccountPressed() async{
+    bool emailValid = RegExp(
+        r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+        .hasMatch(_email);
+    if (emailValid) {
+      http.Response response =
+      await AuthServices.register(_name, _email, _password);
+      Map responseMap = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (BuildContext context) => NewsScreen(),
+            ));
+      } else {
+        errorSnackBar(context, responseMap.values.first);
+      }
+    } else {
+      errorSnackBar(context, 'email not valid');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +73,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderSide: BorderSide(color: Constants.primaryColor),
                   ),
                 ),
+                  onChanged: (value){
+                  _email = value;
+                  },
               ),
+
               const SizedBox(height: 24),
 
               const Text("Full Name"),
@@ -53,6 +88,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderSide: BorderSide(color: Constants.primaryColor),
                   ),
                 ),
+                onChanged: (value){
+                  _name = value;
+                },
               ),
               const SizedBox(height: 24),
 
@@ -75,6 +113,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     },
                   ),
                 ),
+                onChanged: (value){
+                  _password = value;
+                },
               ),
               const SizedBox(height: 24),
 
@@ -111,9 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // ...................
-                  },
+                  onPressed: () => createAccountPressed(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Constants.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
