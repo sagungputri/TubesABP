@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tubes1/constants.dart';
+import 'package:tubes1/pages/login_page.dart';
 import 'package:tubes1/pages/register_page.dart';
 
 class PageWelcome extends StatelessWidget {
@@ -45,18 +46,28 @@ class PageWelcome extends StatelessWidget {
 
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
+            child: OutlinedButton(
               onPressed: () {
-                //navigasii ke signin
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Constants.primaryColor,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Constants.primaryColor, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: const Text("Sign In", style: TextStyle(fontSize: 16)),
+              child: Text(
+                "Sign In",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Constants.primaryColor,
+                ),
+              ),
             ),
           ),
 
